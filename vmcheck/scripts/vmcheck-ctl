@@ -1,0 +1,144 @@
+#!/usr/bin/env python2
+#-*- coding: utf-8 -*-
+
+import os
+import errno
+import sys
+from optparse import OptionParser
+
+from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, ping_ok
+
+admin_cron = \
+"""
+#* For details see man 4 crontabs
+
+    PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin
+    MAILTO=""
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+
+*/1 * * * * root vmcheck_admin --start --daemon >/dev/null 2>&1
+"""
+
+agent_cron = \
+"""
+#* For details see man 4 crontabs
+
+    PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin
+    MAILTO=""
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name command to be executed
+
+*/1 * * * * root vmcheck_agent --start >/dev/null 2>&1
+"""
+
+def add_admin_cron():
+    cron_path = "/etc/cron.d/vmcheck_admin_cron"
+    tmppath = "/tmp/vmcheck_admin_cron"
+
+    if os.path.isfile(cron_path):
+        error = 'cron %s was exists' % (cron_path)
+        WARN(error)
+
+    with open(tmppath, "w") as f:
+        f.write(admin_cron)
+
+    cmd = "mv -f %s %s" % (tmppath, cron_path)
+    exec_cmd(cmd)
+
+def del_admin_cron():
+    cron_path = "/etc/cron.d/vmcheck_admin_cron"
+    cmd = "rm -rf %s" % (cron_path)
+    exec_cmd(cmd)
+
+def add_agent_cron():
+    cron_path = "/etc/cron.d/vmcheck_agent_cron"
+    tmppath = "/tmp/vmcheck_agent_cron"
+
+    if os.path.isfile(cron_path):
+        error = 'cron %s was exists' % (cron_path)
+        WARN(error)
+
+    with open(tmppath, "w") as f:
+        f.write(agent_cron)
+
+    cmd = "mv -f %s %s" % (tmppath, cron_path)
+    exec_cmd(cmd)
+
+def del_agent_cron():
+    cron_path = "/etc/cron.d/vmcheck_agent_cron"
+    cmd = "rm -rf %s" % (cron_path)
+    exec_cmd(cmd)
+
+def deploy():
+    pass
+
+if __name__ == "__main__":
+    usage = "usage: %prog [options] arg1 arg2"  
+    parser = OptionParser(usage=usage)  
+    parser.add_option('', "--add_admin_cron",  
+        action="store_true", dest="add_admin_cron", default=None,  
+        help="add vmcheck_admin to crontab")
+    parser.add_option('', "--del_admin_cron",  
+        action="store_true", dest="del_admin_cron", default=None,  
+        help="del vmcheck_admin from crontab")
+    parser.add_option('', "--add_agent_cron",  
+        action="store_true", dest="add_agent_cron", default=None,  
+        help="add vmcheck_agent to crontab")
+    parser.add_option('', "--del_agent_cron",  
+        action="store_true", dest="del_agent_cron", default=None,  
+        help="del vmcheck_agent from crontab")
+
+    if (len(sys.argv) <= 1):
+        parser.print_help()
+        exit(1)
+
+    (options, args) = parser.parse_args()
+    #print options
+    #print args
+
+    if options.stop_vm:
+        stop_vm()
+    elif options.start_vm:
+        host = options.host
+        if host is None:
+            print 'will auto select host to start vm'
+        start_vm(host)
+    elif options.conf:
+        conf()
+    elif options.status:
+        status()
+    elif options.upload_systemdisk:
+        local_file = options.local_file
+        if local_file is None:
+            DERROR("local_file was miss")
+            exit(1)
+        if not os.path.isabs(local_file):
+            DERROR("local_file must be absolute path")
+            exit(1)
+        upload_systemdisk(local_file)
+    elif options.add_admin_cron:
+        add_admin_cron()
+    elif options.del_admin_cron:
+        del_admin_cron()
+    elif options.add_agent_cron:
+        add_agent_cron()
+    elif options.del_agent_cron:
+        del_agent_cron()
+    else:
+        DERROR("not support")
+        exit(1)

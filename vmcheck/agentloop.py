@@ -4,6 +4,7 @@
 import Queue
 import threading
 import time
+import traceback
 
 from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, Exp, ping_ok
 
@@ -51,7 +52,7 @@ def fence_ok(hosts):
     ping_ok = []
     ping_error = []
 
-    q = Queue()
+    q = Queue.Queue()
     [q.put(h) for h in hosts]
 
     def _ping():
@@ -108,6 +109,7 @@ def worker():
         try:
             _worker()
         except Exception, e:
+            traceback.print_exc()
             DERROR('worker was error, %s' % (e)) 
 
         DERROR('worker fence ok')

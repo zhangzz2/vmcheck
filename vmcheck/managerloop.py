@@ -4,35 +4,71 @@
 import Queue
 import threading
 import time
-import mysql
+import MySQLdb
+import traceback
 
-from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, ping_ok
+from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, ping_ok, Exp
 
 PING_TIMEOUT = 300
 THREAD_NUM = 10
 
+def get_hosts():
+    #hosts = [['uuid': uuid, 'managementIp': mip}]
+    db = MySQLdb.connect(host="localhost", user="root", db="zstack")
+    sql = '''select uuid, managementIp from HostVO '''
+    #sql = '''select uuid, name, hostUuid, lastHostUuid from VmInstanceVO where state="running" '''
+    cur = db.cursor()
+    cur.execute(sql)
+    r = cur.fetchall()
+    hosts = []
+    for x in r:
+        hosts.append({"uuid": x[0], "host": x[1]})
+
+    cur.close()
+    db.close()
+    return hosts
+
 def get_vms_started():
     '''
     从数据库里面查询到当前所有正在运行的虚拟机
+    vms.append({'uuid': x[0], 'name': x[1], 'hostUuid': hostuuid, 'lastHostUuid': x[3], 'host': host})
     '''
-    db = mysql.connect(host="localhost", user="root", passwd=None, db="zstack")
-    sql = '''select uuid, name, hostUuid, lastHostUuid from VmInstanceVO where state=="Stopped" '''
-    db.query(sql)
-    r = db.store_result()
+    db = MySQLdb.connect(host="localhost", user="root", db="zstack")
+    sql = '''select uuid, name, hostUuid, lastHostUuid from VmInstanceVO where state="Running" '''
+    #sql = '''select uuid, name, hostUuid, lastHostUuid from VmInstanceVO where state="running" '''
+    cur = db.cursor()
+    cur.execute(sql)
+    r = cur.fetchall()
+
+    hosts = get_hosts()
     vms = []
     for x in r:
-        vms.append({'uuid': x[0], 'name': x[1], 'hostUuid': x[2], 'lastHostUuid': x[3]})
+        hostuuid = x[2]
+
+        host = ''
+        for h in hosts:
+            if h['uuid'] == hostuuid:
+                host = h['host']
+                break
+
+        if not host:
+            raise Exp(1, 'can not find host uuid: %s, hosts: %s' % (hostuuid, hosts))
+
+        vms.append({'uuid': x[0], 'name': x[1], 'hostUuid': hostuuid, 'lastHostUuid': x[3], 'host': host})
+
+    cur.close()
+    db.close()
     return vms
 
-def vm_update_status(vm_uuid, status):
-    db = mysql.connect(host="localhost", user="root", passwd=None, db="zstack")
-    sql = '''update set state="%s" from VmInstanceVO where uuid=="%s" ''' % (status, vm_uuid)
-    db.query(sql)
-    r = db.store_result()
-    vms = []
-    for x in r:
-        vms.append({'uuid': x[0], 'name': x[1], 'hostUuid': x[2], 'lastHostUuid': x[3]})
-    return vms
+def update_vm(vm_uuid, status):
+    return
+    db = MySQLdb.connect(host="localhost", user="root", db="zstack")
+    sql = '''update set state="%s" from VmInstanceVO where uuid="%s" ''' % (status, vm_uuid)
+    cur = db.cursor()
+    cur.execute(sql)
+    cur.commit()
+    cur.close()
+    db.close()
 
 def host_online(host):
     t1 = time.time()
@@ -52,12 +88,12 @@ def host_online(host):
 
 def _worker():
     vms = get_vms_started()
-    hosts = list(set(vm['host'] for vm in vms))
+    hosts = list(set([vm['host'] for vm in vms]))
     if not hosts:
         DINFO("no hosts, return")
         return
 
-    q = Queue()
+    q = Queue.Queue()
     for h in list(set(vm['host'] for vm in vms)):
         q.put(h)
 
@@ -65,12 +101,16 @@ def _worker():
         if host_online(host):
             DINFO("host %s online, ok")
         else:
-            _vms = [x if x['host'] == host for x in vms]
+            _vms = []
+            for v in vms:
+                if v['host'] == host:
+                    _vms.append(x)
+
             DWARN("host %s offline, update vms %s to Stopped" % (host, _vms))
-            for x in vms:
+            for x in _vms:
                 status = 'Stopped'
                 DINFO("vm_update vm: %s, vmuuid: %s, status: %s" % (vm["name"], vm["uuid"], status))
-                vm_update_status(vm, status)
+                update_vm(vm, status)
 
     def _fetch():
         while True:
@@ -95,6 +135,7 @@ def worker():
         try:
             _worker()
         except Exception, e:
+            traceback.print_exc()
             DERROR('worker was error, %s' % (e)) 
 
         time.sleep(7)

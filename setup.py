@@ -39,8 +39,8 @@ setup(
         ],
     install_requires=[],  #removed for better compat
     scripts=[
-        "vmcheck/scripts/vmcheck_admin",
-        "vmcheck/scripts/vmcheck_guest",
-        "vmcheck/scripts/vmcheck_ctl",
+        "vmcheck/scripts/vmcheck-admin",
+        "vmcheck/scripts/vmcheck-agent",
+        "vmcheck/scripts/vmcheck-ctl",
        ],
     )
