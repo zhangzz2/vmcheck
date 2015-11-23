@@ -61,7 +61,6 @@ def get_vms_started():
     return vms
 
 def update_vm(vm_uuid, status):
-    return
     db = MySQLdb.connect(host="localhost", user="root", db="zstack")
     sql = '''update set state="%s" from VmInstanceVO where uuid="%s" ''' % (status, vm_uuid)
     cur = db.cursor()
