@@ -18,6 +18,11 @@
 3, 在计算节点执行 vmcheck-ctl --add_agent_cron 
 4，完成部署
 
+备注：
+放到crontab里面并不是说要依赖cron来周期执行。
+放到里面是为了确保vmcheck_manager 和 vmcheck_agent 退出后，可以依靠cron再次启动起来。
+
+
 
 运行日志:
  /var/log/vmcheck_admin.log 
