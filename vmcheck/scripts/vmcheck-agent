@@ -17,7 +17,7 @@ from optparse import OptionParser
 
 from vmcheck.daemon import Daemon
 from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, ping_ok
-from vmcheck.agentloop import worker
+from vmcheck.agent import worker
 #from managervm_utils import VM_SYSTEMDISK
 #from managervm_utils import DINFO, DWARN, DERROR, exec_cmd, exec_cmd_remote, VM_CHANNEL, VM_SYSTEMDISK
 
@@ -54,26 +54,26 @@ if __name__ == "__main__":
     pidfile = "/var/run/vmcheck_agent.pid"
     stdout = "/var/log/vmcheck_agent.log"
     stderr = stdout
-    admin = Admin(pidfile, stdout=stdout, stderr=stderr, name="vmcheck_agent")
+    agent = Agent(pidfile, stdout=stdout, stderr=stderr, name="vmcheck_agent")
 
     if options.start:
         if options.daemon:
             print 'start as daemon'
-            admin.start()
+            agent.start()
         else:
             worker()
     elif options.stop:
-        admin.stop()
+        agent.stop()
     elif options.stat:
-        if admin.stat():
-            cmd = "cat %s" % admin.pidfile
+        if agent.stat():
+            cmd = "cat %s" % agent.pidfile
             stdout, stderr = exec_cmd(cmd)
             pid = stdout.strip()
             print 'running pid: %s' % pid
         else:
             print 'stopped'
     elif options.restart:
-        admin.restart()
+        agent.restart()
     else:
         DERROR("not support")
         exit(1)

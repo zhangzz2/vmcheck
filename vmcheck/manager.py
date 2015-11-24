@@ -28,7 +28,7 @@ def get_hosts():
     db.close()
     return hosts
 
-def get_vms_started():
+def get_vms_running():
     '''
     从数据库里面查询到当前所有正在运行的虚拟机
     vms.append({'uuid': x[0], 'name': x[1], 'hostUuid': hostuuid, 'lastHostUuid': x[3], 'host': host})
@@ -62,10 +62,11 @@ def get_vms_started():
 
 def update_vm(vm_uuid, status):
     db = MySQLdb.connect(host="localhost", user="root", db="zstack")
-    sql = '''update set state="%s" from VmInstanceVO where uuid="%s" ''' % (status, vm_uuid)
+    sql = '''update VmInstanceVO set state="%s" where uuid="%s" ''' % (status, vm_uuid)
     cur = db.cursor()
     cur.execute(sql)
-    cur.commit()
+    db.commit()
+
     cur.close()
     db.close()
 
@@ -86,7 +87,7 @@ def host_online(host):
 
 
 def _worker():
-    vms = get_vms_started()
+    vms = get_vms_running()
     hosts = list(set([vm['host'] for vm in vms]))
     if not hosts:
         DINFO("no hosts, return")
@@ -98,7 +99,7 @@ def _worker():
 
     def _do_fetch(host):
         if host_online(host):
-            DINFO("host %s online, ok")
+            DINFO("host %s online, ok" % host)
         else:
             _vms = []
             for v in vms:

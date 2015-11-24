@@ -24,7 +24,7 @@ admin_cron = \
 # |  |  |  |  |
 # *  *  *  *  * user-name command to be executed
 
-*/1 * * * * root vmcheck_admin --start --daemon >/dev/null 2>&1
+*/1 * * * * root vmcheck-admin --start --daemon >/dev/null 2>&1
 """
 
 agent_cron = \
@@ -43,7 +43,7 @@ agent_cron = \
 # |  |  |  |  |
 # *  *  *  *  * user-name command to be executed
 
-*/1 * * * * root vmcheck_agent --start >/dev/null 2>&1
+*/1 * * * * root vmcheck-agent --start --daemon >/dev/null 2>&1
 """
 
 def add_admin_cron():
@@ -52,7 +52,7 @@ def add_admin_cron():
 
     if os.path.isfile(cron_path):
         error = 'cron %s was exists' % (cron_path)
-        WARN(error)
+        DWARN(error)
 
     with open(tmppath, "w") as f:
         f.write(admin_cron)
@@ -71,7 +71,7 @@ def add_agent_cron():
 
     if os.path.isfile(cron_path):
         error = 'cron %s was exists' % (cron_path)
-        WARN(error)
+        DWARN(error)
 
     with open(tmppath, "w") as f:
         f.write(agent_cron)
@@ -111,27 +111,7 @@ if __name__ == "__main__":
     #print options
     #print args
 
-    if options.stop_vm:
-        stop_vm()
-    elif options.start_vm:
-        host = options.host
-        if host is None:
-            print 'will auto select host to start vm'
-        start_vm(host)
-    elif options.conf:
-        conf()
-    elif options.status:
-        status()
-    elif options.upload_systemdisk:
-        local_file = options.local_file
-        if local_file is None:
-            DERROR("local_file was miss")
-            exit(1)
-        if not os.path.isabs(local_file):
-            DERROR("local_file must be absolute path")
-            exit(1)
-        upload_systemdisk(local_file)
-    elif options.add_admin_cron:
+    if options.add_admin_cron:
         add_admin_cron()
     elif options.del_admin_cron:
         del_admin_cron()

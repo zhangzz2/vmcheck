@@ -17,7 +17,7 @@ from optparse import OptionParser
 
 from vmcheck.daemon import Daemon
 from vmcheck.utils import exec_cmd, DINFO, DWARN, DERROR, ping_ok
-from vmcheck.managerloop import worker
+from vmcheck.manager import worker
 #from managervm_utils import VM_SYSTEMDISK
 #from managervm_utils import DINFO, DWARN, DERROR, exec_cmd, exec_cmd_remote, VM_CHANNEL, VM_SYSTEMDISK
 

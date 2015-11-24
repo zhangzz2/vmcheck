@@ -14,25 +14,25 @@ THREAD_NUM = 10
 def get_local_vms():
     vms = []
 
-    cmd = "set -o pipefail;ps aux|grep kvm|grep lichbd|grep m|grep smp|grep file"
+    cmd = "set -o pipefail;ps aux|grep kvm|grep lichbd|grep m|grep smp|grep file|grep -v grep"
     stdout = ''
     stderr = ''
     try:
-        stdout, stderr = mutils.exec_cmd(cmd)
+        stdout, stderr = exec_cmd(cmd)
     except Exp, e:
         DWARN("no vm, %s" % (e))
         return vms
 
     if stdout.strip():
-        for l in stdout.split("\n"):
+        for l in stdout.strip().split("\n"):
+            l = l.split()
             vm_name = l[12]
             vm_pid = l[1]
             vms.append({"name": vm_name, "pid": vm_pid})
 
     return vms
 
-def kill_allvm():
-    vms = get_local_vms()
+def kill_vms(vms):
     for v in vms:
         cmd = "kill -9 %s" % (v['pid'])
         exec_cmd(cmd)
@@ -42,15 +42,14 @@ def get_hosts():
     cluster = '/opt/mds/etc/cluster.conf'
     hosts = []
     with open(cluster, 'r') as f:
-        lines = f.readlines().split("\n")
-        lines = [x.strip() for x in lines]
-        hosts = [x if not x.startswith("#") for x in lines]
+        lines = [x.strip() for x in f.readlines()]
+        hosts = [x for x in lines if not x.startswith("#")]
 
     return hosts
 
 def fence_ok(hosts):
-    ping_ok = []
-    ping_error = []
+    ok = []
+    error = []
 
     q = Queue.Queue()
     [q.put(h) for h in hosts]
@@ -64,9 +63,9 @@ def fence_ok(hosts):
                 break
 
             if ping_ok(item):
-                ping_ok.append(item)
+                ok.append(item)
             else:
-                ping_error.append(item)
+                error.append(item)
 
             q.task_done()
 
@@ -78,7 +77,7 @@ def fence_ok(hosts):
     q.join()
 
     limit = (len(hosts) / 2) + 1
-    if len(ping_ok) >= limit or limit == 1:
+    if len(ok) >= limit or limit == 1:
         return True
     else:
         return False
@@ -102,7 +101,8 @@ def _worker():
     hosts = get_hosts()
     if not fence_ok(hosts):
         if not sure_fence_ok(hosts):
-            kill_allvm()
+            vms = get_local_vms()
+            kill_vms(vms)
 
 def worker():
     while True:
@@ -112,7 +112,7 @@ def worker():
             traceback.print_exc()
             DERROR('worker was error, %s' % (e)) 
 
-        DERROR('worker fence ok')
+        DINFO('worker fence ok')
         time.sleep(7)
     pass
 
